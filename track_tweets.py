@@ -27,15 +27,15 @@ class MyStreamListener(tweepy.StreamListener):
         self.project = project
 
         # create both even and odd databases.
-        home = os.path.dirname(__file__)
-        os.makedirs('{}/db/'.format(home), exist_ok=True)
-        self.even = sqlite3.connect('{}/db/even.sqlite'.format(home), isolation_level=None)
+        database_dir = os.path.join(os.path.dirname(__file__), 'db')
+        os.makedirs(database_dir, exist_ok=True)
+        self.even = sqlite3.connect(os.path.join(database_dir, 'even.sqlite'), isolation_level=None)
         self.even.execute("create table if not exists tweet"
                           "(project string,"
                           "creation_date timestamp,"
                           "tweet_id string,"
                           "tweet_json string)")
-        self.odd = sqlite3.connect('{}/db/odd.sqlite'.format(home), isolation_level=None)
+        self.odd = sqlite3.connect(os.path.join(database_dir, 'odd.sqlite'), isolation_level=None)
         self.odd.execute("create table if not exists tweet"
                          "(project string,"
                          "creation_date timestamp,"
@@ -145,7 +145,7 @@ def twitter_listening(args):
 def save_project(args):
     # if temporary local s3 directory does not exist, create it
     logging.info('Going to create S3 directory...')
-    directory = '{}/s3'.format(os.path.dirname(__file__))
+    directory = os.path.join(os.path.dirname(__file__), 's3')
     os.makedirs(directory, exist_ok=True)
 
     # create a string with all the information that we want to upload
@@ -158,7 +158,7 @@ def save_project(args):
     json_line = json.dumps(project_json)
 
     # save the information to local file
-    filename_json = '{}/{}.json'.format(directory, args.project)
+    filename_json = os.path.join(directory, '{}.json'.format(args.project))
     with open(filename_json, 'w') as json_file:
         json_file.write("{}\n".format(json_line))
 
