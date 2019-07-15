@@ -18,6 +18,21 @@ MAX_ATTEMPTS = 10
 num_exceptions = 0
 
 
+# function that will be used to return all fields called "created_at" (all timestamp fields)
+def gen_dict_extract(key, var):
+    if hasattr(var, 'items'):
+        for k, v in var.items():
+            if k == key:
+                yield v
+            if isinstance(v, dict):
+                for result in gen_dict_extract(key, v):
+                    yield result
+            elif isinstance(v, list):
+                for d in v:
+                    for result in gen_dict_extract(key, d):
+                        yield result
+
+
 # class to handle the stream of tweets
 class MyStreamListener(tweepy.StreamListener):
 
@@ -59,35 +74,15 @@ class MyStreamListener(tweepy.StreamListener):
         # extract the tweet_id that can be used to sort the temporary table
         tweet_id = tweet_json['id_str']
 
-        # update all fields created_at to the PrestoDB/Athena date format
-        tweet_json['created_at'] = time.strftime('%Y-%m-%d %H:%M:%S',
-                                                 time.strptime(tweet_json['created_at'], '%a %b %d %H:%M:%S +0000 %Y'))
-        try:
-            # noinspection PyTypeChecker
-            tweet_json['user']['created_at'] = time.strftime('%Y-%m-%d %H:%M:%S',
-                                                             time.strptime(tweet_json['user']['created_at'],
-                                                                           '%a %b %d %H:%M:%S +0000 %Y'))
-        except KeyError:
-            pass
-
-        try:
-            # noinspection PyTypeChecker
-            tweet_json['quoted_status']['created_at'] =\
-                time.strftime('%Y-%m-%d %H:%M:%S',
-                              time.strptime(tweet_json['quoted_status']['created_at'], '%a %b %d %H:%M:%S +0000 %Y'))
-        except KeyError:
-            pass
-
-        try:
-            # noinspection PyTypeChecker
-            tweet_json['retweeted_status']['created_at'] =\
-                time.strftime('%Y-%m-%d %H:%M:%S',
-                              time.strptime(tweet_json['retweeted_status']['created_at'], '%a %b %d %H:%M:%S +0000 %Y'))
-        except KeyError:
-            pass
-
         # converts dict into string
         json_line = json.dumps(tweet_json)
+
+        # standardize all dates to PrestoDB/Athena format
+        for created_at in gen_dict_extract('created_at', tweet_json):
+            json_line = json_line.replace(created_at,
+                                          time.strftime('%Y-%m-%d %H:%M:%S',
+                                                        time.strptime(created_at, '%a %b %d %H:%M:%S +0000 %Y')),
+                                          1)
 
         # if the number of days since Jan 1, 1970 is an even number, inserts new tweet on database "even"
         if int(creation_date.replace(tzinfo=timezone.utc).timestamp() / 86400) % 2 == 0:
