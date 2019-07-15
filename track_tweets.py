@@ -9,6 +9,8 @@ import sqlite3
 import configparser
 import logging
 import boto3
+import bz2
+from shutil import copyfileobj
 
 
 # global constant and global variable that will be used to guarantee that we don't get into an infinite loop of errors
@@ -149,6 +151,7 @@ def save_project(args):
     os.makedirs(directory, exist_ok=True)
 
     # create a string with all the information that we want to upload
+    logging.info('Going to put together project data...')
     project_json = {
         'name': args.project,
         'track': args.track,
@@ -158,9 +161,18 @@ def save_project(args):
     json_line = json.dumps(project_json)
 
     # save the information to local file
+    logging.info('Going to create Json file...')
     filename_json = os.path.join(directory, '{}.json'.format(args.project))
     with open(filename_json, 'w') as json_file:
         json_file.write("{}\n".format(json_line))
+
+    logging.info('Going to compress Json file...')
+    filename_bz2 = os.path.join(directory, '{}.json.bz2'.format(args.project))
+    with open(filename_json, 'rb') as input_file:
+        with bz2.BZ2File(filename_bz2, 'wb', compresslevel=9) as output_file:
+            copyfileobj(input_file, output_file)
+    logging.info('Going to delete temporary Json file...')
+    os.remove(filename_json)
 
     # connect to S3 and upload the file
     logging.info('Going to read config.ini...')
@@ -173,13 +185,13 @@ def save_project(args):
         region_name=config['aws']['region']
     )
     s3 = session.resource('s3')
-    filename_s3 = 'project/{}.json'.format(args.project)
+    filename_s3 = 'project/{}.json.bz2'.format(args.project)
     logging.info('Going to upload project Json file to bucket %s as %s...', config['aws']['s3_bucket_raw'], filename_s3)
-    s3.Bucket(config['aws']['s3_bucket_raw']).upload_file(filename_json, filename_s3)
+    s3.Bucket(config['aws']['s3_bucket_raw']).upload_file(filename_bz2, filename_s3)
 
     # deletes temporary file
-    logging.info('Going to delete temporary Json file...')
-    os.remove(filename_json)
+    logging.info('Going to delete temporary bz2 file...')
+    os.remove(filename_bz2)
 
 
 def main():
