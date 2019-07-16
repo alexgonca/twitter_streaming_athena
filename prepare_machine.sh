@@ -15,4 +15,4 @@ pip3 install --trusted-host pypi.python.org -r ~/requirements.txt
 # TODO: create config.ini if not exists
 chmod 0600 ~/config.ini
 
-crontab -l | { cat; echo "5 0 * * * python3 ~/upload_files.py"; } | crontab -
+crontab -l | { cat; echo "5 0 * * * python3 ~/upload_files.py && python3 ~/validate_urls.py"; } | crontab -
