@@ -142,8 +142,8 @@ def twitter_listening(args):
 def save_project(args):
     # if temporary local s3 directory does not exist, create it
     logging.info('Going to create S3 directory...')
-    directory = os.path.join(os.path.dirname(__file__), 's3')
-    os.makedirs(directory, exist_ok=True)
+    temp_directory = os.path.join(os.path.dirname(__file__), 'temp')
+    os.makedirs(temp_directory, exist_ok=True)
 
     # create a string with all the information that we want to upload
     logging.info('Going to put together project data...')
@@ -157,12 +157,12 @@ def save_project(args):
 
     # save the information to local file
     logging.info('Going to create Json file...')
-    filename_json = os.path.join(directory, '{}.json'.format(args.project))
+    filename_json = os.path.join(temp_directory, '{}.json'.format(args.project))
     with open(filename_json, 'w') as json_file:
         json_file.write("{}\n".format(json_line))
 
     logging.info('Going to compress Json file...')
-    filename_bz2 = os.path.join(directory, '{}.json.bz2'.format(args.project))
+    filename_bz2 = os.path.join(temp_directory, '{}.json.bz2'.format(args.project))
     with open(filename_json, 'rb') as input_file:
         with bz2.BZ2File(filename_bz2, 'wb', compresslevel=9) as output_file:
             copyfileobj(input_file, output_file)
