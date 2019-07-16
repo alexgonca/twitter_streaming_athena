@@ -47,17 +47,21 @@ class MyStreamListener(tweepy.StreamListener):
         database_dir = os.path.join(os.path.dirname(__file__), 'db')
         os.makedirs(database_dir, exist_ok=True)
         self.even = sqlite3.connect(os.path.join(database_dir, 'even.sqlite'), isolation_level=None)
-        self.even.execute("create table if not exists tweet"
-                          "(project string,"
-                          "creation_date timestamp,"
-                          "tweet_id string,"
-                          "tweet_json string)")
+        self.even.execute("""
+                create table if not exists tweet
+                    (project string,
+                    creation_date timestamp,
+                    tweet_id string,
+                    tweet_json string)
+        """)
         self.odd = sqlite3.connect(os.path.join(database_dir, 'odd.sqlite'), isolation_level=None)
-        self.odd.execute("create table if not exists tweet"
-                         "(project string,"
-                         "creation_date timestamp,"
-                         "tweet_id string,"
-                         "tweet_json string)")
+        self.odd.execute("""
+                create table if not exists tweet
+                    (project string,
+                    creation_date timestamp,
+                    tweet_id string,
+                    tweet_json string)
+        """)
 
     # method that is executed for each tweet that arrives through the stream
     def on_status(self, status):
@@ -187,6 +191,33 @@ def save_project(args):
     # deletes temporary file
     logging.info('Going to delete temporary bz2 file...')
     os.remove(filename_bz2)
+
+    # creates table project on Amazon Athena
+    athena = session.client('athena', region_name=config['aws']['region'])
+
+    logging.info('Going to create Athena database...')
+    athena.start_query_execution(
+        QueryString="create database if not exists internetscholar".replace('internetscholar',
+                                                                            config['aws']['athena_database']),
+        ResultConfiguration={'OutputLocation': 's3://{}/project'.format(config['aws']['s3_bucket_temp'])}
+    )
+    athena.start_query_execution(
+        QueryString="""
+            CREATE EXTERNAL TABLE if not exists project (
+              name string,
+              track array<string>,
+              languages array<string>,
+              created_at timestamp 
+              )           
+            ROW FORMAT SERDE 'org.openx.data.jsonserde.JsonSerDe'
+            LOCATION 's3://internetscholar-raw/project/'        
+        """.replace('s3://internetscholar-raw/project/', "s3://{}/project/".format(config['aws']['s3_bucket_raw'])),
+        QueryExecutionContext={'Database': config['aws']['athena_database']},
+        ResultConfiguration={'OutputLocation': 's3://{}/project'.format(config['aws']['s3_bucket_temp'])}
+    )
+    # delete result files on S3 (just a log of the previous commands)
+    s3.Bucket(config['aws']['s3_bucket_temp']).objects.filter(Prefix="project/").delete()
+    logging.info('Deleted result file on S3 for commands')
 
 
 def main():
