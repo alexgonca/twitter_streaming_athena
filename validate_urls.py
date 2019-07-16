@@ -221,9 +221,9 @@ def main():
                 CREATE EXTERNAL TABLE IF NOT EXISTS validated_url_raw (
                 url string,
                 validated_url string,
-                status_code int,
+                status_code string,
                 content_type string,
-                content_length int,
+                content_length string,
                 created_at string)
                 ROW FORMAT SERDE 'org.apache.hadoop.hive.serde2.OpenCSVSerde'
                 WITH SERDEPROPERTIES ("separatorChar"=",", "escapeChar" = "\\\\")
@@ -256,8 +256,9 @@ def main():
                       format = 'PARQUET',
                       bucketed_by = ARRAY['url'],
                       bucket_count=1) AS
-                select url, validated_url, status_code, content_type, content_length,
-                       cast(created_at as timestamp) as created_at
+                select url, validated_url, cast(trim(status_code) as integer) as status_code,
+                       content_type, cast(trim(content_length) as integer) as content_length,
+                       cast(trim(created_at) as timestamp) as created_at
                 from (select t.*,
                              row_number() over (partition by url order by created_at) as seqnum
                       from validated_url_raw t
