@@ -1,3 +1,4 @@
-requests
+requests>=2.22.0
+google-api-python-client>=1.7.9
 tweepy>=3.7.0
 boto3>=1.9.183
