@@ -3,7 +3,8 @@
 # TODO: comment this file
 sudo timedatectl set-timezone UTC
 
-wget http://repo1.maven.org/maven2/org/apache/orc/orc-tools/1.5.6/orc-tools-1.5.6-uber.jar
+mkdir utils
+wget http://repo1.maven.org/maven2/org/apache/orc/orc-tools/1.5.6/orc-tools-1.5.6-uber.jar -P ./utils/
 
 sudo apt -y update
 sudo apt -y upgrade
