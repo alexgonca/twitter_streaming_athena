@@ -15,6 +15,19 @@ import time
 
 TIMEOUT = 5
 
+query_create_dummy_table = """
+CREATE EXTERNAL TABLE IF NOT EXISTS validated_url
+(url string)
+LOCATION 's3://internetscholar-temp/validated_url/' 
+"""
+
+
+def prepare(text, old=None, new=None):
+    text = ' '.join(text.split())
+    if old is not None:
+        text = text.replace(old, new)
+    return text
+
 
 def main():
     # Configure logging module to save on log file and present messages on the screen too
@@ -51,11 +64,9 @@ def main():
     athena = session.client('athena', region_name=config['aws']['region'])
 
     # Create a dummy table in case a real one does not exist in order to allow the following SELECT statement
-    query_string = """
-            CREATE EXTERNAL TABLE IF NOT EXISTS validated_url (url string)
-                LOCATION 's3://internetscholar-temp/validated_url/'      
-        """.replace('s3://internetscholar-temp/validated_url/',
-                    "s3://{}/validated_url/".format(config['aws']['s3_bucket_temp']))
+    query_string = prepare(query_create_dummy_table,
+                           's3://internetscholar-temp/validated_url/',
+                           "s3://{}/validated_url/".format(config['aws']['s3_bucket_temp']))
     execution = athena.start_query_execution(
         QueryString=query_string,
         QueryExecutionContext={'Database': config['aws']['athena_database']},
